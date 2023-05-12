@@ -28,17 +28,20 @@ class BaseMilstein(base_solver.BaseSDESolver, metaclass=abc.ABCMeta):
     def __init__(self, sde, options, **kwargs):
         if METHOD_OPTIONS.grad_free not in options:
             options[METHOD_OPTIONS.grad_free] = False
-        if options[METHOD_OPTIONS.grad_free]:
-            if sde.noise_type == NOISE_TYPES.additive:
-                # dg=0 in this case, and gdg_prod is already setup to handle that, whilst the grad_free code path isn't.
-                options[METHOD_OPTIONS.grad_free] = False
-        if options[METHOD_OPTIONS.grad_free]:
-            if isinstance(sde, adjoint_sde.AdjointSDE):
-                # We need access to the diffusion to do things grad-free.
-                raise ValueError(f"Derivative-free Milstein cannot be used for adjoint SDEs, because it requires "
-                                 f"direct access to the diffusion, whilst adjoint SDEs rely on a more efficient "
-                                 f"diffusion-vector product. Use derivative-using Milstein instead: "
-                                 f"`adjoint_options=dict({METHOD_OPTIONS.grad_free}=False)`")
+        if (
+            options[METHOD_OPTIONS.grad_free]
+            and sde.noise_type == NOISE_TYPES.additive
+        ):
+            # dg=0 in this case, and gdg_prod is already setup to handle that, whilst the grad_free code path isn't.
+            options[METHOD_OPTIONS.grad_free] = False
+        if options[METHOD_OPTIONS.grad_free] and isinstance(
+            sde, adjoint_sde.AdjointSDE
+        ):
+            # We need access to the diffusion to do things grad-free.
+            raise ValueError(f"Derivative-free Milstein cannot be used for adjoint SDEs, because it requires "
+                             f"direct access to the diffusion, whilst adjoint SDEs rely on a more efficient "
+                             f"diffusion-vector product. Use derivative-using Milstein instead: "
+                             f"`adjoint_options=dict({METHOD_OPTIONS.grad_free}=False)`")
         super(BaseMilstein, self).__init__(sde=sde, options=options, **kwargs)
 
     @abc.abstractmethod

@@ -50,9 +50,7 @@ def _setup(device, batch_size):
 
 def _dict_to_sorted_list(*dicts):
     lists = tuple([d[k] for k in sorted(d.keys())] for d in dicts)
-    if len(lists) == 1:
-        return lists[0]
-    return lists
+    return lists[0] if len(lists) == 1 else lists
 
 
 @pytest.mark.parametrize("device", devices)

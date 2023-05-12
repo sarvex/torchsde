@@ -14,5 +14,4 @@
 
 def linear_interp(t0, y0, t1, y1, t):
     assert t0 <= t <= t1, f"Incorrect time order for linear interpolation: t0={t0}, t={t}, t1={t1}."
-    y = (t1 - t) / (t1 - t0) * y0 + (t - t0) / (t1 - t0) * y1
-    return y
+    return (t1 - t) / (t1 - t0) * y0 + (t - t0) / (t1 - t0) * y1

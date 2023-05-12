@@ -96,10 +96,7 @@ class AdjointSDE(base_sde.BaseSDE):
 
         requires_grad = torch.is_grad_enabled()
 
-        if extra_states:
-            shapes = self._shapes
-        else:
-            shapes = self._shapes[:2]
+        shapes = self._shapes if extra_states else self._shapes[:2]
         numel = sum(shape.numel() for shape in shapes)
         y, adj_y, *extra_states = misc.flat_to_shape(y_aug.squeeze(0)[:numel], shapes)
 
@@ -129,15 +126,16 @@ class AdjointSDE(base_sde.BaseSDE):
 
     def _f_corrected_default(self, f, g, y, adj_y, requires_grad):
         g_columns = [g_column.squeeze(dim=-1) for g_column in g.split(1, dim=-1)]
-        dg_g_jvp = sum([
+        dg_g_jvp = sum(
             misc.jvp(
                 outputs=g_column,
                 inputs=y,
                 grad_inputs=g_column,
                 allow_unused=True,
-                create_graph=True
-            )[0] for g_column in g_columns
-        ])
+                create_graph=True,
+            )[0]
+            for g_column in g_columns
+        )
         # Double Stratonovich correction.
         f = f - dg_g_jvp
         vjp_y_and_params = misc.vjp(

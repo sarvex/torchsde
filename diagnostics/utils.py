@@ -26,13 +26,12 @@ from torchsde.types import Optional, Tensor, Sequence, Union, Callable
 
 def to_numpy(*args):
     """Convert a sequence which might contain Tensors to numpy arrays."""
-    if len(args) == 1:
-        arg = args[0]
-        if isinstance(arg, torch.Tensor):
-            arg = _to_numpy_single(arg)
-        return arg
-    else:
+    if len(args) != 1:
         return tuple(_to_numpy_single(arg) if isinstance(arg, torch.Tensor) else arg for arg in args)
+    arg = args[0]
+    if isinstance(arg, torch.Tensor):
+        arg = _to_numpy_single(arg)
+    return arg
 
 
 def _to_numpy_single(arg: torch.Tensor) -> np.ndarray:
@@ -98,14 +97,14 @@ def swiss_knife_plotter(img_path, plots=None, scatters=None, hists=None, options
     cycle_linestyle = options.get('cycle_linestyle', False)
     cycler = itertools.cycle(["-", "--", "-.", ":"]) if cycle_linestyle else None
     for entry in plots:
-        kwargs = {key: entry[key] for key in entry if key != 'x' and key != 'y'}
+        kwargs = {key: entry[key] for key in entry if key not in ['x', 'y']}
         entry['x'], entry['y'] = to_numpy(entry['x'], entry['y'])
         if cycle_linestyle:
             kwargs['linestyle'] = next(cycler)
         plt.plot(entry['x'], entry['y'], **kwargs)
 
     for entry in scatters:
-        kwargs = {key: entry[key] for key in entry if key != 'x' and key != 'y'}
+        kwargs = {key: entry[key] for key in entry if key not in ['x', 'y']}
         entry['x'], entry['y'] = to_numpy(entry['x'], entry['y'])
         plt.scatter(entry['x'], entry['y'], **kwargs)
 

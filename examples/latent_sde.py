@@ -229,13 +229,11 @@ def main():
         sample_colors = ('#8c96c6', '#8c6bb1', '#810f7c')
         fill_color = '#9ebcda'
         mean_color = '#4d004b'
-        num_samples = len(sample_colors)
     else:
         sample_colors = ('#fc4e2a', '#e31a1c', '#bd0026')
         fill_color = '#fd8d3c'
         mean_color = '#800026'
-        num_samples = len(sample_colors)
-
+    num_samples = len(sample_colors)
     eps = torch.randn(vis_batch_size, 1).to(device)  # Fix seed for the random draws used in the plots.
     bm = torchsde.BrownianInterval(
         t0=ts_vis[0],

@@ -85,22 +85,17 @@ def test_shape(device, levy_area_approximation, return_U, return_A):
             if return_U:
                 if return_A:
                     W1, U1, A1 = sample
-                    shapes.append(W1.shape)
-                    shapes.append(U1.shape)
                     A_shapes.append(A1.shape)
                 else:
                     W1, U1 = sample
-                    shapes.append(W1.shape)
-                    shapes.append(U1.shape)
+                shapes.extend((W1.shape, U1.shape))
             else:
                 if return_A:
                     W1, A1 = sample
-                    shapes.append(W1.shape)
                     A_shapes.append(A1.shape)
                 else:
                     W1 = sample
-                    shapes.append(W1.shape)
-
+                shapes.append(W1.shape)
         for shape_ in shapes:
             assert shape_ == shape
         for shape_ in A_shapes:
@@ -118,10 +113,7 @@ def test_determinism_simple(device, levy_area_approximation, return_U, return_A)
     for val in vals[1:]:
         if torch.is_tensor(val):
             val = (val,)
-        if torch.is_tensor(vals[0]):
-            val0 = (vals[0],)
-        else:
-            val0 = vals[0]
+        val0 = (vals[0], ) if torch.is_tensor(vals[0]) else vals[0]
         for v, v0 in zip(val, val0):
             assert (v == v0).all()
 

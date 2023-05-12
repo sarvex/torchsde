@@ -147,10 +147,7 @@ class BrownianTree(brownian_base.BaseBrownian):
 
         if t1 is None:
             t1 = t0 + 1
-        if w1 is None:
-            W = None
-        else:
-            W = w1 - w0
+        W = None if w1 is None else w1 - w0
         self._w0 = w0
         self._interval = brownian_interval.BrownianInterval(t0=t0,
                                                             t1=t1,

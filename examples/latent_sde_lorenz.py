@@ -203,9 +203,7 @@ class LatentSDE(nn.Module):
         eps = torch.randn(size=(batch_size, *self.pz0_mean.shape[1:]), device=self.pz0_mean.device)
         z0 = self.pz0_mean + self.pz0_logstd.exp() * eps
         zs = torchsde.sdeint(self, z0, ts, names={'drift': 'h'}, dt=1e-3, bm=bm)
-        # Most of the times in ML, we don't sample the observation noise for visualization purposes.
-        _xs = self.projector(zs)
-        return _xs
+        return self.projector(zs)
 
 
 def make_dataset(t0, t1, batch_size, noise_std, train_dir, device):

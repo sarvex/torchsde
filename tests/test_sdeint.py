@@ -119,15 +119,14 @@ def test_sdeint_run_shape_method(sde_cls, use_bm, levy_area_approximation, sde_t
         method = 'milstein'
         options = dict(grad_free=True)
     else:
-        options = dict()
+        options = {}
 
     should_fail = False
     if sde_type == 'ito':
         if method not in ('euler', 'srk', 'milstein'):
             should_fail = True
-    else:
-        if method not in ('euler_heun', 'heun', 'midpoint', 'log_ode', 'milstein'):
-            should_fail = True
+    elif method not in ('euler_heun', 'heun', 'midpoint', 'log_ode', 'milstein'):
+        should_fail = True
     if method in ('milstein', 'srk') and sde_cls.noise_type == 'general':
         should_fail = True
     if method == 'srk' and levy_area_approximation == 'none':
@@ -142,10 +141,10 @@ def test_sdeint_run_shape_method(sde_cls, use_bm, levy_area_approximation, sde_t
     sde = sde_cls(sde_type=sde_type, **kwargs).to(device)
 
     if use_bm:
-        if sde_cls.noise_type == 'scalar':
-            size = (batch_size, 1)
-        elif sde_cls.noise_type == 'diagonal':
+        if sde_cls.noise_type == 'diagonal':
             size = (batch_size, d + 1) if logqp else (batch_size, d)
+        elif sde_cls.noise_type == 'scalar':
+            size = (batch_size, 1)
         else:
             assert sde_cls.noise_type in ('additive', 'general')
             size = (batch_size, m)
@@ -170,7 +169,7 @@ def test_sdeint_dependencies(sde_cls, method, adaptive, device):
         method = 'milstein'
         options = dict(grad_free=True)
     else:
-        options = dict()
+        options = {}
 
     sde = sde_cls(d=d).to(device)
     bm = None

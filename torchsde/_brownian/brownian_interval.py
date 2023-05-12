@@ -34,7 +34,9 @@ def _randn(size, dtype, device, seed):
 
 
 def _is_scalar(x):
-    return isinstance(x, int) or isinstance(x, float) or (isinstance(x, torch.Tensor) and x.numel() == 1)
+    return isinstance(x, (int, float)) or (
+        isinstance(x, torch.Tensor) and x.numel() == 1
+    )
 
 
 def _assert_floating_tensor(name, tensor):
@@ -48,9 +50,9 @@ def _check_tensor_info(*tensors, size, dtype, device):
     """Check if sizes, dtypes, and devices of input tensors all match prescribed values."""
     tensors = list(filter(torch.is_tensor, tensors))
 
-    if dtype is None and len(tensors) == 0:
+    if dtype is None and not tensors:
         dtype = torch.get_default_dtype()
-    if device is None and len(tensors) == 0:
+    if device is None and not tensors:
         device = torch.device("cpu")
 
     sizes = [] if size is None else [size]
@@ -62,15 +64,23 @@ def _check_tensor_info(*tensors, size, dtype, device):
     devices = [] if device is None else [device]
     devices += [t.device for t in tensors]
 
-    if len(sizes) == 0:
-        raise ValueError(f"Must either specify `size` or pass in `W` or `H` to implicitly define the size.")
+    if not sizes:
+        raise ValueError(
+            "Must either specify `size` or pass in `W` or `H` to implicitly define the size."
+        )
 
-    if not all(i == sizes[0] for i in sizes):
-        raise ValueError(f"Multiple sizes found. Make sure `size` and `W` or `H` are consistent.")
-    if not all(i == dtypes[0] for i in dtypes):
-        raise ValueError(f"Multiple dtypes found. Make sure `dtype` and `W` or `H` are consistent.")
-    if not all(i == devices[0] for i in devices):
-        raise ValueError(f"Multiple devices found. Make sure `device` and `W` or `H` are consistent.")
+    if any(i != sizes[0] for i in sizes):
+        raise ValueError(
+            "Multiple sizes found. Make sure `size` and `W` or `H` are consistent."
+        )
+    if any(i != dtypes[0] for i in dtypes):
+        raise ValueError(
+            "Multiple dtypes found. Make sure `dtype` and `W` or `H` are consistent."
+        )
+    if any(i != devices[0] for i in devices):
+        raise ValueError(
+            "Multiple devices found. Make sure `device` and `W` or `H` are consistent."
+        )
 
     # Make sure size is a tuple (not a torch.Size) for neat repr-printing purposes.
     return tuple(sizes[0]), dtypes[0], devices[0]
@@ -217,10 +227,7 @@ class _Interval:
                 noise = parent._randn(parent._W_seed)
                 left_W = mean + math.sqrt(var) * noise
 
-                if self._is_left:
-                    out_W = left_W
-                else:
-                    out_W = W - left_W
+                out_W = left_W if self._is_left else W - left_W
                 out_H = None
 
             self._top._increment_and_space_time_levy_area_cache[self] = (out_W, out_H)
@@ -465,9 +472,8 @@ class BrownianInterval(brownian_base.BaseBrownian, _Interval):
                 raise ValueError("`tol` should be positive.")
             if dt is not None:
                 raise ValueError("`dt` is not used and should be set to `None` if `halfway_tree` is True.")
-        else:
-            if tol < 0.:
-                raise ValueError("`tol` should be non-negative.")
+        elif tol < 0.:
+            raise ValueError("`tol` should be non-negative.")
 
         size, dtype, device = _check_tensor_info(W, H, size=size, dtype=dtype, device=device)
 
@@ -563,7 +569,6 @@ class BrownianInterval(brownian_base.BaseBrownian, _Interval):
     # Effectively permanently store our increment and space-time Levy area in the cache.
     def _increment_and_space_time_levy_area(self):
         return self._w_h
-        yield  # make it a generator
 
     def _a_seed(self):
         return self._top_a_seed
@@ -657,29 +662,16 @@ class BrownianInterval(brownian_base.BaseBrownian, _Interval):
                         A = A + Ai + 0.5 * (W.unsqueeze(-1) * Wi.unsqueeze(-2) - Wi.unsqueeze(-1) * W.unsqueeze(-2))
                     W = W + Wi
 
-        U = None
-        if self._have_H:
-            U = _H_to_U(W, H, tb - ta)
-
+        U = _H_to_U(W, H, tb - ta) if self._have_H else None
         if return_U:
-            if return_A:
-                return W, U, A
-            else:
-                return W, U
+            return (W, U, A) if return_A else (W, U)
         else:
-            if return_A:
-                return W, A
-            else:
-                return W
+            return (W, A) if return_A else W
 
     def _create_dependency_tree(self, dt):
         # For safety we take a min with 100: if people take very large cache sizes then this would then break the
         # logarithmic into linear, which causes RecursionErrors.
-        if self._cache_size is None:  # cache_size=None corresponds to infinite cache.
-            cache_size = 100
-        else:
-            cache_size = min(self._cache_size, 100)
-
+        cache_size = 100 if self._cache_size is None else min(self._cache_size, 100)
         self._tree_dt = min(self._tree_dt, dt)
         # Rationale: We are prepared to hold `cache_size` many things in memory, so when making steps of size `dt`
         # then we can afford to have the intervals at the bottom of our binary tree be of size `dt * cache_size`.
@@ -698,10 +690,7 @@ class BrownianInterval(brownian_base.BaseBrownian, _Interval):
         _set_points(self)
 
     def __repr__(self):
-        if self._dt is None:
-            dt = None
-        else:
-            dt = f"{self._dt:.3f}"
+        dt = None if self._dt is None else f"{self._dt:.3f}"
         return (f"{self.__class__.__name__}("
                 f"t0={self._start:.3f}, "
                 f"t1={self._end:.3f}, "

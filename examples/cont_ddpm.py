@@ -104,12 +104,10 @@ class ScoreMatchingSDE(Module):
 
     def analytical_mean(self, t, x_t0):
         mean_coeff = (-.5 * (self._indefinite_int(t) - self._indefinite_int(self.t0))).exp()
-        mean = x_t0 * fill_tail_dims(mean_coeff, x_t0)
-        return mean
+        return x_t0 * fill_tail_dims(mean_coeff, x_t0)
 
     def analytical_var(self, t, x_t0):
-        analytical_var = 1 - (-self._indefinite_int(t) + self._indefinite_int(self.t0)).exp()
-        return analytical_var
+        return 1 - (-self._indefinite_int(t) + self._indefinite_int(self.t0)).exp()
 
     @torch.no_grad()
     def analytical_sample(self, t, x_t0):
@@ -151,8 +149,9 @@ class ScoreMatchingSDE(Module):
 
         fake_score = self.score(t, x_t)
         true_score = self.analytical_score(x_t, t, x_t0)
-        loss = (lambda_t * ((fake_score - true_score) ** 2).flatten(start_dim=1).sum(dim=1))
-        return loss
+        return lambda_t * ((fake_score - true_score) ** 2).flatten(
+            start_dim=1
+        ).sum(dim=1)
 
 
 class ReverseDiffeqWrapper(Module):
@@ -331,11 +330,19 @@ def main(
             if global_step % pause_every == 0:
                 logging.warning(f'global_step: {global_step:06d}, loss: {loss:.4f}')
 
-                img_path = os.path.join(train_dir, f'ode_samples', f'global_step_{global_step:07d}.png')
+                img_path = os.path.join(
+                    train_dir,
+                    'ode_samples',
+                    f'global_step_{global_step:07d}.png',
+                )
                 ode_samples = reverse.ode_sample_final(tau=tau)
                 plot(ode_samples, img_path)
 
-                img_path = os.path.join(train_dir, f'sde_samples', f'global_step_{global_step:07d}.png')
+                img_path = os.path.join(
+                    train_dir,
+                    'sde_samples',
+                    f'global_step_{global_step:07d}.png',
+                )
                 sde_samples = reverse.sde_sample_final(tau=tau)
                 plot(sde_samples, img_path)
 

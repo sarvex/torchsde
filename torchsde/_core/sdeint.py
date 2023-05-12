@@ -118,17 +118,17 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
     else:
         names_to_change = {key: names[key] for key in ("drift", "diffusion", "prior_drift", "drift_and_diffusion",
                                                        "drift_and_diffusion_prod") if key in names}
-    if len(names_to_change) > 0:
+    if names_to_change:
         sde = base_sde.RenameMethodsSDE(sde, **names_to_change)
 
     if not hasattr(sde, "noise_type"):
-        raise ValueError(f"sde does not have the attribute noise_type.")
+        raise ValueError("sde does not have the attribute noise_type.")
 
     if sde.noise_type not in NOISE_TYPES:
         raise ValueError(f"Expected noise type in {NOISE_TYPES}, but found {sde.noise_type}.")
 
     if not hasattr(sde, "sde_type"):
-        raise ValueError(f"sde does not have the attribute sde_type.")
+        raise ValueError("sde does not have the attribute sde_type.")
 
     if sde.sde_type not in SDE_TYPES:
         raise ValueError(f"Expected sde type in {SDE_TYPES}, but found {sde.sde_type}.")
@@ -160,7 +160,9 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
 
     if not torch.is_tensor(ts):
         if not isinstance(ts, (tuple, list)) or not all(isinstance(t, (float, int)) for t in ts):
-            raise ValueError(f"Evaluation times `ts` must be a 1-D Tensor or list/tuple of floats.")
+            raise ValueError(
+                "Evaluation times `ts` must be a 1-D Tensor or list/tuple of floats."
+            )
         ts = torch.tensor(ts, dtype=y0.dtype, device=y0.device)
     if not misc.is_strictly_increasing(ts):
         raise ValueError("Evaluation times `ts` must be strictly increasing.")
@@ -216,7 +218,7 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
         _check_2d_or_3d('Diffusion', g_diffusion_shape)
     if hasattr(sde, 'g_prod'):
         has_g = True
-        if len(noise_sizes) == 0:
+        if not noise_sizes:
             raise ValueError("Cannot infer noise size (i.e. number of Brownian motion channels). Either pass `bm` "
                              "explicitly, or specify one of the `g`, `f_and_g` functions.`")
         v = torch.randn(batch_sizes[0], noise_sizes[0], dtype=y0.dtype, device=y0.device)
@@ -225,7 +227,7 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
     if hasattr(sde, 'f_and_g_prod'):
         has_f = True
         has_g = True
-        if len(noise_sizes) == 0:
+        if not noise_sizes:
             raise ValueError("Cannot infer noise size (i.e. number of Brownian motion channels). Either pass `bm` "
                              "explicitly, or specify one of the `g`, `f_and_g` functions.`")
         v = torch.randn(batch_sizes[0], noise_sizes[0], dtype=y0.dtype, device=y0.device)
@@ -252,10 +254,9 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
         if noise_size != noise_sizes[0]:
             raise ValueError("Noise sizes not consistent.")
 
-    if sde.noise_type == NOISE_TYPES.scalar:
-        if noise_sizes[0] != 1:
-            raise ValueError(f"Scalar noise must have only one channel; the diffusion has {noise_sizes[0]} noise "
-                             f"channels.")
+    if sde.noise_type == NOISE_TYPES.scalar and noise_sizes[0] != 1:
+        raise ValueError(f"Scalar noise must have only one channel; the diffusion has {noise_sizes[0]} noise "
+                         f"channels.")
 
     sde = base_sde.ForwardSDE(sde)
 
@@ -269,32 +270,26 @@ def check_contract(sde, y0, ts, bm, method, adaptive, options, names, logqp):
         bm = BrownianInterval(t0=ts[0], t1=ts[-1], size=(batch_sizes[0], noise_sizes[0]), dtype=y0.dtype,
                               device=y0.device, levy_area_approximation=levy_area_approximation)
 
-    if options is None:
-        options = {}
-    else:
-        options = options.copy()
-
+    options = {} if options is None else options.copy()
     if adaptive and method == METHODS.euler and sde.noise_type != NOISE_TYPES.additive:
-        warnings.warn(f"Numerical solution is not guaranteed to converge to the correct solution when using adaptive "
-                      f"time-stepping with the Euler--Maruyama method with non-additive noise.")
+        warnings.warn(
+            'Numerical solution is not guaranteed to converge to the correct solution when using adaptive time-stepping with the Euler--Maruyama method with non-additive noise.'
+        )
 
     return sde, y0, ts, bm, method, options
 
 
 def parse_return(y0, ys, extra_solver_state, extra, logqp):
-    if logqp:
-        ys, log_ratio = ys.split(split_size=(y0.size(1) - 1, 1), dim=2)
-        log_ratio_increments = torch.stack(
-            [log_ratio_t_plus_1 - log_ratio_t
-             for log_ratio_t_plus_1, log_ratio_t in zip(log_ratio[1:], log_ratio[:-1])], dim=0
-        ).squeeze(dim=2)
+    if not logqp:
+        return (ys, extra_solver_state) if extra else ys
+    ys, log_ratio = ys.split(split_size=(y0.size(1) - 1, 1), dim=2)
+    log_ratio_increments = torch.stack(
+        [log_ratio_t_plus_1 - log_ratio_t
+         for log_ratio_t_plus_1, log_ratio_t in zip(log_ratio[1:], log_ratio[:-1])], dim=0
+    ).squeeze(dim=2)
 
-        if extra:
-            return ys, log_ratio_increments, extra_solver_state
-        else:
-            return ys, log_ratio_increments
-    else:
-        if extra:
-            return ys, extra_solver_state
-        else:
-            return ys
+    return (
+        (ys, log_ratio_increments, extra_solver_state)
+        if extra
+        else (ys, log_ratio_increments)
+    )
